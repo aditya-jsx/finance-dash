@@ -47,12 +47,28 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    // Fetch records they own OR they have access to
+    const { type, category, startDate, endDate } = req.query;
+
+    const queryFilters: any = {};
+    if (type) queryFilters.type = type;
+    if (category) queryFilters.category = category;
+    if (startDate || endDate) {
+      queryFilters.date = {};
+      if (startDate) queryFilters.date.gte = new Date(startDate as string);
+      if (endDate) queryFilters.date.lte = new Date(endDate as string);
+    }
+
+    // Fetch records they own OR they have access to and match the filters
     const records = await prisma.financialRecord.findMany({
       where: {
-        OR: [
-          { userId: req.user!.id },
-          { accessRecords: { some: { userId: req.user!.id } } }
+        AND: [
+          {
+            OR: [
+              { userId: req.user!.id },
+              { accessRecords: { some: { userId: req.user!.id } } }
+            ]
+          },
+          queryFilters
         ]
       },
       include: {
